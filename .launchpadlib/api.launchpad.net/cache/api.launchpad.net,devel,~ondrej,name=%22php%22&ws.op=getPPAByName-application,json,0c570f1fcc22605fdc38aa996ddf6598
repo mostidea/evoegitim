@@ -1,0 +1,22 @@
+status: 200
+date: Wed, 18 Jun 2025 21:00:10 GMT
+server: gunicorn
+x-powered-by: Zope (www.zope.org), Python (www.python.org)
+content-security-policy: frame-ancestors 'self';
+content-type: application/json
+strict-transport-security: max-age=15552000
+vary: Accept,Accept-Encoding
+x-content-type-options: nosniff
+x-frame-options: SAMEORIGIN
+x-launchpad-revision: 7aa962af79d02042917108fba5eb8636b85ecd02
+x-lazr-notifications: []
+x-xss-protection: 1; mode=block
+x-vcs-revision: 7aa962af79d02042917108fba5eb8636b85ecd02
+x-request-id: 4c3a3cde-358f-4f98-badb-8e0620fc2f53
+content-length: 2650
+-content-encoding: gzip
+content-location: https://api.launchpad.net/devel/~ondrej?name=%22php%22&ws.op=getPPAByName
+-varied-accept: application/json
+-varied-accept-encoding: gzip, deflate
+
+{"self_link": "https://api.launchpad.net/devel/~ondrej/+archive/ubuntu/php", "web_link": "https://launchpad.net/~ondrej/+archive/ubuntu/php", "resource_type_link": "https://api.launchpad.net/devel/#archive", "owner_link": "https://api.launchpad.net/devel/~ondrej", "name": "php", "displayname": "PPA for PHP", "reference": "~ondrej/ubuntu/php", "distribution_link": "https://api.launchpad.net/devel/ubuntu", "private": false, "suppress_subscription_notifications": false, "dependencies_collection_link": "https://api.launchpad.net/devel/~ondrej/+archive/ubuntu/php/dependencies", "description": "Co-installable PHP versions: PHP 5.6, PHP 7.x, PHP 8.x and most requested extensions are included. Packages are provided for *Current* Ubuntu *LTS* releases (https://wiki.ubuntu.com/Releases).  Expanded Security Maintenance releases ARE NOT supported.\n\nDebian stable, oldstable and Debian LTS packages are provided from a separate repository: https://deb.sury.org/#debian-dpa\n\nYou can get more information about the packages at https://deb.sury.org\n\nBUGS\u0026FEATURES: This PPA has a issue tracker:\nhttps://deb.sury.org/#bug-reporting\n\nIssues reported in a private email don't scale and most likely will be ignored.  I simply don't have capacity to answer questions privately.\n\nCAVEATS:\n1. If you are using apache2, you are advised to add ppa:ondrej/apache2\n2. If you are using nginx, you are advised to add ppa:ondrej/nginx\n\nDONATION: If you like my work and you want to show appreciation, please consider donating regularly: https://donate.sury.org/\n\nCOMMERCIAL SUPPORT: Support for PHP packages for older Debian and Ubuntu release can be bought from https://www.freexian.com/lts/php/\n\nWARNING: add-apt-repository is broken with non-UTF-8 locales, see\nhttps://github.com/oerdnj/deb.sury.org/issues/56 for workaround:\n\n# LC_ALL=C.UTF-8 add-apt-repository ppa:ondrej/php", "signing_key_fingerprint": "B8DC7E53946656EFBCE4C1DD71DAEAAB4AD4CAB6", "require_virtualized": true, "build_debug_symbols": true, "publish_debug_symbols": true, "permit_obsolete_series_uploads": false, "authorized_size": 65536, "status": "Active", "external_dependencies": null, "metadata_overrides": null, "processors_collection_link": "https://api.launchpad.net/devel/~ondrej/+archive/ubuntu/php/processors", "enabled_restricted_processors_collection_link": "https://api.launchpad.net/devel/~ondrej/+archive/ubuntu/php/enabled_restricted_processors", "publishing_method": "Local", "repository_format": "Debian", "publish": true, "relative_build_score": 0, "http_etag": "\"fef85e4e203d7ec42857e2272bb6f9389ee64751-2d381b1be5351bebd37fdf29ef1e528319a447f2\""}
