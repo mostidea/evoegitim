@@ -1,0 +1,462 @@
+<?php
+// 1. CONFIGURATION & SESSION CHECK
+session_start();
+include("../config/connection.php");
+checkUnSession();
+
+// Fetch parent/student info context
+$studentData = getStudentInfo($db, $_SESSION["email"]);
+if(!isset($_GET["uid"]) || empty($_GET["uid"])){
+  $userInfo = $studentData['user_info'];
+} else {
+  $userInfo["id"] = $_GET["uid"];
+}
+
+// 2. FETCH GROUP CLASS DETAILS BASED ON SLUG
+if (isset($_GET['kurs'])) {
+  // FIX 1: Changed INNER JOIN to LEFT JOIN to ensure data loads even if a teacher/lesson is missing.
+  // FIX 2: Specified `groups`.slug to prevent ambiguous column SQL errors.
+  $stmtA = $db->prepare('
+      SELECT `groups`.*,
+             lessons.title AS lestitle,
+             lessons.description AS lesdescription,
+             users.fullname,
+             users.profile_photo,
+             users.profession,
+             users.description AS teacherdescription
+      FROM `groups`
+      LEFT JOIN lessons ON `groups`.lesson_id = lessons.id
+      LEFT JOIN users ON `groups`.teacher_id = users.id
+      WHERE `groups`.slug = ?
+  ');
+  $stmtA->execute([$_GET['kurs']]);
+  $row = $stmtA->fetch(PDO::FETCH_ASSOC) ?: null;
+
+  // FIX 3: Stop execution if the query returns nothing (invalid slug)
+  if (!$row) {
+      header("location: group-classes.php");
+      exit; // Critical to prevent rendering HTML with null values
+  }
+
+} else {
+  header("location: group-classes.php");
+  exit; // Critical to stop execution
+}
+
+function slugify($text) {
+  $tr = ['ş'=>'s','Ş'=>'s','ç'=>'c','Ç'=>'c','ğ'=>'g','Ğ'=>'g','ü'=>'u','Ü'=>'u','ö'=>'o','Ö'=>'o','ı'=>'i','İ'=>'i'];
+  $text = strtr($text, $tr);
+  $text = strtolower($text);
+  $text = preg_replace('/[^a-z0-9\s-]/', '', $text);
+  $text = preg_replace('/[\s]+/', '-', trim($text));
+  return $text;
+}
+?>
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+  <?php include "../includes_panel/meta.php"; ?>
+  <link rel="stylesheet" href="https://evoegitim.com/new-site/assets/css/fontawesome.min.css?v=5021139">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+  <title><?php echo htmlspecialchars($row["title"] ?? 'Detaylar'); ?> | Evo Eğitim</title>
+  <style>
+    .course-details .course-img img { object-fit: contain; }
+    .course-details .course-meta-box td { font-size: 13px !important; }
+    .editor-content ul { list-style-type: disc !important; padding-left: 2rem !important; margin-bottom: 1rem !important; }
+    .editor-content ol { list-style-type: decimal !important; padding-left: 2rem !important; margin-bottom: 1rem !important; }
+    .editor-content table { width: 100% !important; margin-bottom: 1rem; border-collapse: collapse; }
+    .editor-content table th, .editor-content table td { padding: 8px 12px; border: 1px solid #dee2e6; text-align: left; }
+  </style>
+</head>
+
+<body>
+  <?php include 'includes/left-menu.php'; ?>
+  <div class="modal fade" id="courseRegistrationModal" tabindex="-1" aria-labelledby="courseRegistrationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="courseRegistrationModalLabel">Kursa Kayıt Formu</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+        </div>
+        <div class="modal-body">
+          <form id="courseRegistrationForm" action="student/apply-group.php">
+            <input type="hidden" name="id" value="<?php echo htmlspecialchars($row["id"]); ?>">
+            <input type="hidden" name="uid" value="<?php echo htmlspecialchars($userInfo["id"]); ?>">
+
+            <div class="mb-3">
+              <label class="form-label">1. Şu anda hangi sınıfta okuyorsun?</label>
+              <div class="form-check-group mt-2">
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="educationLevel" id="primary" value="İlkokul">
+                  <label class="form-check-label" for="primary">İlkokul</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="educationLevel" id="middle" value="Ortaokul">
+                  <label class="form-check-label" for="middle">Ortaokul</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="educationLevel" id="high" value="Lise">
+                  <label class="form-check-label" for="high">Lise</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="educationLevel" id="university" value="Üniversite / Mezun / Diğer">
+                  <label class="form-check-label" for="university">Üniversite / Mezun / Diğer</label>
+                </div>
+              </div>
+            </div>
+
+            <hr>
+
+            <div class="mb-3">
+              <label class="form-label">2. Bu derste kendini nasıl değerlendiriyorsun?</label>
+              <div class="form-check-group mt-2">
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="selfAssessment" id="beginner" value="Başlangıç (hiç çalışmadım veya çok az)">
+                  <label class="form-check-label" for="beginner">Başlangıç (hiç çalışmadım veya çok az)</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="selfAssessment" id="intermediate" value="Orta seviye (temel bilgim var)">
+                  <label class="form-check-label" for="intermediate">Orta seviye (temel bilgim var)</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="selfAssessment" id="advanced" value="İleri seviye (konuya oldukça hakimim)">
+                  <label class="form-check-label" for="advanced">İleri seviye (konuya oldukça hakimim)</label>
+                </div>
+              </div>
+            </div>
+
+            <hr>
+
+            <div class="mb-3">
+              <label class="form-label">3. Daha önce bu konuyla ilgili bir sınava veya değerlendirmeye girdin mi?</label>
+              <div class="form-check-group mt-2">
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="previousExam" id="examYes" value="Evet">
+                  <label class="form-check-label" for="examYes">Evet</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="previousExam" id="examNo" value="Hayır">
+                  <label class="form-check-label" for="examNo">Hayır</label>
+                </div>
+              </div>
+            </div>
+
+            <div class="mb-3 exam-satisfied-container d-none">
+              <label class="form-label ps-4">Sonucun seni tatmin etti mi?</label>
+              <div class="form-check-group ps-4 mt-2">
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="examSatisfied" id="satisfiedYes" value="Evet">
+                  <label class="form-check-label" for="satisfiedYes">Evet</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="examSatisfied" id="satisfiedNo" value="Hayır">
+                  <label class="form-check-label" for="satisfiedNo">Hayır</label>
+                </div>
+              </div>
+            </div>
+
+            <hr>
+
+            <div class="mb-3">
+              <label class="form-label">4. Bir konuyu anlamak için genellikle kaç tekrar yaparsın?</label>
+              <div class="form-check-group mt-2">
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="repeatCount" id="repeat1" value="1 kez anlatılınca anlarım">
+                  <label class="form-check-label" for="repeat1">1 kez anlatılınca anlarım</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="repeatCount" id="repeat2-3" value="2-3 tekrar gerekir">
+                  <label class="form-check-label" for="repeat2-3">2-3 tekrar gerekir</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="repeatCount" id="repeatMany" value="Daha fazla tekrar gerekir">
+                  <label class="form-check-label" for="repeatMany">Daha fazla tekrar gerekir</label>
+                </div>
+              </div>
+            </div>
+
+            <hr>
+
+            <div class="mb-3">
+              <label class="form-label">5. Ders çalışırken nasıl öğrenmeyi tercih ediyorsun?</label>
+              <div class="form-check-group mt-2">
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="learningStyle" id="styleLive" value="Öğretmenle canlı derslerde anlatım">
+                  <label class="form-check-label" for="styleLive">Öğretmenle canlı derslerde anlatım</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="learningStyle" id="styleVideo" value="Videolar izleyerek kendi başıma">
+                  <label class="form-check-label" for="styleVideo">Videolar izleyerek kendi başıma</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="learningStyle" id="stylePractice" value="Soru çözerek pratik yaparak">
+                  <label class="form-check-label" for="stylePractice">Soru çözerek pratik yaparak</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="learningStyle" id="styleGame" value="Oyun, yarışma, simülasyon tarzı etkinliklerle">
+                  <label class="form-check-label" for="styleGame">Oyun, yarışma, simülasyon tarzı etkinliklerle</label>
+                </div>
+              </div>
+            </div>
+
+            <hr>
+
+            <div class="mb-3">
+              <label class="form-label">6. Bu derste hedefin nedir?</label>
+              <div class="form-check-group mt-2">
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="goal" id="goalExam" value="Sınavda yüksek başarı">
+                  <label class="form-check-label" for="goalExam">Sınavda yüksek başarı</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="goal" id="goalComplement" value="Eksiklerimi tamamlamak">
+                  <label class="form-check-label" for="goalComplement">Eksiklerimi tamamlamak</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="goal" id="goalCuriosity" value="Sadece merak ve öğrenme için">
+                  <label class="form-check-label" for="goalCuriosity">Sadece merak ve öğrenme için</label>
+                </div>
+              </div>
+            </div>
+
+            <hr>
+
+            <div class="mb-3">
+              <label class="form-label">7. Haftada bu derse kaç saat ayırabilirsin?</label>
+              <div class="form-check-group mt-2">
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="timeCommitment" id="time1-2" value="1-2 saat">
+                  <label class="form-check-label" for="time1-2">1-2 saat</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="timeCommitment" id="time3-5" value="3-5 saat">
+                  <label class="form-check-label" for="time3-5">3-5 saat</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="timeCommitment" id="time6plus" value="6 saat ve üzeri">
+                  <label class="form-check-label" for="time6plus">6 saat ve üzeri</label>
+                </div>
+              </div>
+            </div>
+
+            <hr>
+
+            <div class="mb-3">
+              <label class="form-label">8. Özel bir öğrenme desteğine ihtiyaç duyuyor musun?<br><small class="text-muted">(Örneğin: disleksi, dikkat eksikliği gibi)</small></label>
+              <div class="form-check-group mt-2">
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="specialNeeds" id="needsYes" value="Evet">
+                  <label class="form-check-label" for="needsYes">Evet</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="specialNeeds" id="needsNo" value="Hayır">
+                  <label class="form-check-label" for="needsNo">Hayır</label>
+                </div>
+              </div>
+            </div>
+
+          </form>
+          </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Kapat</button>
+          <button type="button" class="btn btn-primary" id="submitForm">Gönder</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dashboard-main-wrapper">
+    <?php include 'includes/top-menu.php'; ?>
+    <div class="dashboard-body">
+
+      <div class="card mt-24">
+        <div class="card-body">
+          <section class="course-details space-top space-extra-bottom">
+            <div class="container">
+
+              <div class="row flex-row-reverse">
+                <div class="col-lg-4">
+                  <div class="course-meta-box">
+                    <table>
+                      <tbody>
+                        <tr>
+                          <th style="white-space: nowrap;"><i class="far fa-hourglass"></i>Başlangıç Tarihi:</th>
+                          <td><?php echo !empty($row["start_date"]) ? turkcetarih('j F Y H:i', $row["start_date"]) : 'Belirtilmedi'; ?></td>
+                        </tr>
+                        <tr>
+                          <th style="white-space: nowrap;"><i class="far fa-clock"></i>Haftalık Ders Süresi:</th>
+                          <td><?php echo $row["total_lesson_time"] ?? '0'; ?> Hafta / Haftada <?php echo $row["weekly_lesson_count"] ?? '0'; ?> Gün</td>
+                        </tr>
+                        <tr>
+                          <th><i class="far fa-user-alt"></i>Kontenjan Sayısı:</th>
+                          <td>
+                            <?php
+                            $teacher = $db->prepare('SELECT id FROM groups_quota WHERE group_id = ? AND status = 1');
+                            $teacher->execute([$row['id']]);
+                            $teac = $teacher->rowCount() ?: 0;
+                            echo $teac;
+                            ?> / <?php echo $row["quota"] ?? '0'; ?> Öğrenci
+                          </td>
+                        </tr>
+                        <tr>
+                          <th style="white-space: nowrap;"><i class="far fa-ticket"></i>Kredi Miktarı:</th>
+                          <td> <?php echo ($row["credit"] ?? 0) * ($row["total_lesson_time"] ?? 0) * ($row["weekly_lesson_count"] ?? 0); ?></td>
+                        </tr>
+                        <tr>
+                          <th style="white-space: nowrap;"><i class="far fa-suitcase"></i>Kredi Tipi:</th>
+                          <td>Grup Ders Kredisi</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <div class="col-lg-8">
+                  <div class="mega-hover course-img">
+                      <img src="<?php echo !empty($row["image"]) ? $row["image"] : 'assets/img/default-course.jpg'; ?>" alt="Ders Fotoğrafı" />
+                  </div>
+                  <div class="course-category">
+                    <a href="course.php">
+                        <?php echo htmlspecialchars($row["lestitle"] ?? 'Ders Seçilmedi'); ?> - <?php echo htmlspecialchars($row["lesdescription"] ?? ''); ?>
+                    </a>
+                  </div>
+                  <h2 class="course-title"><?php echo htmlspecialchars($row["title"] ?? 'Başlık Yok'); ?></h2>
+                  <div class="course-review">
+                    <i class="fas fa-star text-warning"></i>
+                    <i class="fas fa-star text-warning"></i>
+                    <i class="fas fa-star text-warning"></i>
+                    <i class="fas fa-star text-warning"></i>
+                    <i class="fas fa-star text-warning"></i>
+                    ( 5.0 )
+                  </div>
+                  <h5 class="border-title2">Konu</h5>
+                  <p>
+                  <?php echo htmlspecialchars($row["subject"] ?? 'Konu belirtilmemiş.'); ?>
+                  </p>
+                  <h5 class="border-title2">Genel Bakış</h5>
+                  <div class="editor-content">
+                    <?php echo $row["description"] ?? 'Açıklama bulunmuyor.'; ?>
+                  </div>
+
+                  <div class="mt-4 pt-lg-2">
+                    <h5 class="border-title2">Kurs Kuralları</h5>
+                    <div class="editor-content"><?php echo $row["rule"] ?? 'Kural belirtilmemiş.'; ?></div>
+                  </div>
+
+                  <h5 class="border-title2 mt-4">Eğitmen Hakkında</h5>
+                  <div class="row gx-40">
+                    <div class="col-sm-6 col-lg-4">
+                      <div class="team-style1">
+                        <div class="team-img">
+                          <img class="w-100" src="<?php echo !empty($row["profile_photo"]) ? $row["profile_photo"] : 'assets/img/default-avatar.jpg'; ?>" alt="Eğitmen" />
+                          <div class="team-content">
+                            <h4 class="team-name"><a href="https://evoegitim.com/ogretmen/<?php echo slugify($row['fullname'] ?? ''); ?>-<?php echo $row['teacher_id']; ?>/"><?php echo htmlspecialchars($row["fullname"] ?? 'Eğitmen Atanmadı'); ?></a></h4>
+                            <p class="team-degi"><?php echo htmlspecialchars($row["profession"] ?? ''); ?></p>
+                            <p class="team-text"><?php echo htmlspecialchars($row["teacherdescription"] ?? ''); ?></p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+    </div>
+    <?php include '../includes_panel/footer.php'; ?>
+  </div>
+
+  <?php include '../includes_panel/scripts.php'; ?>
+  <?php include 'includes/vbs-scripts.php'; ?>
+  <?php include 'includes/multiple-student-scripts.php'; ?>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.js"></script>
+
+  <script>
+    $(document).ready(function() {
+      // Open Modal on Course Registration button click
+      $("#enrollButton").on("click", function(e) {
+        e.preventDefault();
+        $("#courseRegistrationModal").modal("show");
+      });
+
+      // Form Submission Logic
+      $("#submitForm").on("click", function() {
+        // Form Validation
+        if (!document.getElementById('courseRegistrationForm').checkValidity()) {
+          document.getElementById('courseRegistrationForm').reportValidity();
+          return;
+        }
+
+        // Collect Form Data
+        var formData = new FormData(document.getElementById('courseRegistrationForm'));
+
+        // Show loading spinner
+        Swal.fire({
+          title: 'İşleniyor...',
+          text: 'Talebiniz işleniyor, lütfen bekleyiniz.',
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+          }
+        });
+
+        // AJAX POST Request
+        $.ajax({
+          url: document.getElementById('courseRegistrationForm').getAttribute('action'),
+          type: 'POST',
+          data: formData,
+          processData: false,
+          contentType: false,
+          dataType:"json",
+          success: function(response) {
+            try {
+              // Close Modal
+              $("#courseRegistrationModal").modal("hide");
+
+              // Handle Success/Error Responses
+              if (response.status == 1) {
+                Swal.fire({
+                  icon: 'success',
+                  title: 'Başarılı!',
+                  text: response.message || 'Form başarıyla gönderildi.',
+                  confirmButtonText: 'Tamam'
+                }).then((result) => {
+                  document.getElementById('courseRegistrationForm').reset();
+                });
+              } else {
+                Swal.fire({
+                  icon: 'error',
+                  title: 'Hata!',
+                  text: response.message || 'İşlem sırasında bir hata oluştu.',
+                  confirmButtonText: 'Tamam'
+                });
+              }
+            } catch (e) {
+              console.error(e);
+              Swal.fire({
+                icon: 'error',
+                title: 'İşlem Hatası',
+                text: 'Sunucu yanıtı işlenirken bir hata oluştu.',
+                confirmButtonText: 'Tamam'
+              });
+            }
+          },
+          error: function(xhr, status, error) {
+            console.error(xhr, status, error);
+            Swal.fire({
+              icon: 'error',
+              title: 'Bağlantı Hatası',
+              text: 'Sunucuyla iletişim kurulurken bir hata oluştu.',
+              confirmButtonText: 'Tamam'
+            });
+          }
+        });
+      });
+    });
+  </script>
+
+</body>
+</html>

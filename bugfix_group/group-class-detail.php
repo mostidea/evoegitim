@@ -1,0 +1,302 @@
+<?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+session_start();
+include("config/connection.php");
+checkUnSession();
+
+$panel   = $_SESSION['panel'] ?? 'student';
+$menuDir = rtrim($panel, '/') . '/includes/';
+
+if (!isset($_GET['kurs'])) {
+    header("location: " . $panel . "/dashboard.php");
+    exit;
+}
+
+$stmt = $db->prepare("
+    SELECT g.*, l.title AS lestitle, l.description AS lesdescription,
+           u.fullname, u.profile_photo, u.profession, u.description AS teacherdesc
+    FROM `groups` g
+    INNER JOIN lessons l ON g.lesson_id = l.id
+    INNER JOIN users   u ON g.teacher_id = u.id
+    WHERE g.slug = ?
+");
+$stmt->execute([$_GET['kurs']]);
+$row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$row) {
+    header("location: " . $panel . "/dashboard.php");
+    exit;
+}
+
+$quotaStmt = $db->prepare("SELECT COUNT(*) FROM groups_quota WHERE group_id = ? AND status = 1");
+$quotaStmt->execute([$row['id']]);
+$enrolled  = (int)$quotaStmt->fetchColumn();
+$quota     = max(1, (int)$row['quota']);
+$pct       = min(100, round($enrolled / $quota * 100));
+$totalCredit = (int)$row['credit'] * (int)$row['total_lesson_time'] * (int)$row['weekly_lesson_count'];
+$levels    = json_decode($row['level'] ?? '[]', true) ?: [];
+$levelTxt  = $levels ? implode(', ', $levels) : '—';
+
+$imgSrc    = !empty($row['image'])         ? '/' . ltrim($row['image'], '/')         : '/assets/img/course/course-2-1.jpg';
+$avatarSrc = !empty($row['profile_photo']) ? '/' . ltrim($row['profile_photo'], '/') : '/assets/img/team/team-1-1.jpg';
+
+function slugify($text) {
+    $tr = ['ş'=>'s','Ş'=>'s','ç'=>'c','Ç'=>'c','ğ'=>'g','Ğ'=>'g','ü'=>'u','Ü'=>'u','ö'=>'o','Ö'=>'o','ı'=>'i','İ'=>'i'];
+    $text = strtr($text, $tr);
+    return preg_replace('/[\s]+/', '-', preg_replace('/[^a-z0-9\s-]/', '', strtolower($text)));
+}
+?>
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <?php include "includes_panel/meta.php"; ?>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+  <title><?php echo htmlspecialchars($row['title']); ?> | Evo Eğitim</title>
+  <style>
+    :root {
+      --gp:#7c3aed; --gp-s:#f5f3ff; --gb:#2563eb; --gb-s:#eff6ff;
+      --gg:#059669; --gg-s:#ecfdf5; --ga:#f59e0b; --ga-s:#fffbeb;
+      --gt:#0f172a; --gm:#64748b;   --gbr:#e2e8f0; --gbg:#f1f5f9;
+      --gc:#ffffff; --gr:16px; --gs:0 2px 12px rgba(0,0,0,.06);
+    }
+    .evo-page { background:var(--gbg); min-height:100vh; padding:1.75rem; display:flex; flex-direction:column; gap:1.25rem; }
+
+    /* Hero */
+    .evo-hero { border-radius:var(--gr); overflow:hidden; position:relative; height:320px; }
+    .evo-hero img { width:100%; height:100%; object-fit:cover; }
+    .evo-hero-overlay { position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,.05) 0%, rgba(0,0,0,.6) 100%); }
+    .evo-hero-content { position:absolute; bottom:0; left:0; right:0; padding:1.75rem 2rem; }
+    .evo-hero-cat { display:inline-block; background:var(--gp); color:#fff; font-size:.72rem; font-weight:700; padding:.25rem .75rem; border-radius:20px; margin-bottom:.6rem; }
+    .evo-hero-title { font-size:1.6rem; font-weight:800; color:#fff; margin:0 0 .4rem; text-shadow:0 2px 8px rgba(0,0,0,.4); }
+    .evo-hero-sub { font-size:.85rem; color:rgba(255,255,255,.82); }
+
+    /* Stats bar */
+    .evo-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; }
+    .evo-stat-card { background:var(--gc); border:1px solid var(--gbr); border-radius:var(--gr); box-shadow:var(--gs); padding:1.1rem 1.25rem; display:flex; align-items:center; gap:.85rem; }
+    .evo-stat-icon { width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.2rem; flex-shrink:0; }
+    .evo-stat-num { font-size:1.25rem; font-weight:800; color:var(--gt); line-height:1; }
+    .evo-stat-lbl { font-size:.7rem; color:var(--gm); margin-top:.2rem; }
+
+    /* Layout */
+    .evo-layout { display:grid; grid-template-columns:1fr 320px; gap:1.25rem; align-items:start; }
+
+    /* Card */
+    .evo-card { background:var(--gc); border:1px solid var(--gbr); border-radius:var(--gr); box-shadow:var(--gs); }
+    .evo-card-head { padding:1rem 1.5rem; border-bottom:1px solid var(--gbr); }
+    .evo-card-head h5 { font-size:.92rem; font-weight:700; color:var(--gt); margin:0; display:flex; align-items:center; gap:.45rem; }
+    .evo-card-body { padding:1.5rem; }
+
+    /* Content sections */
+    .evo-section { margin-bottom:1.5rem; }
+    .evo-section:last-child { margin-bottom:0; }
+    .evo-section-title { font-size:.82rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--gm); margin:0 0 .7rem; display:flex; align-items:center; gap:.4rem; }
+    .evo-section-title i { color:var(--gp); }
+    .evo-prose { font-size:.88rem; color:var(--gt); line-height:1.7; }
+
+    /* Sidebar */
+    .evo-sidebar { display:flex; flex-direction:column; gap:1rem; }
+
+    /* Quota */
+    .evo-quota-bar { height:8px; background:#e2e8f0; border-radius:8px; overflow:hidden; margin:.5rem 0 .3rem; }
+    .evo-quota-fill { height:100%; border-radius:8px; background:linear-gradient(90deg,var(--gp),#a855f7); }
+
+    /* Info list */
+    .evo-info-list { display:flex; flex-direction:column; gap:.7rem; }
+    .evo-info-row { display:flex; align-items:flex-start; gap:.7rem; font-size:.84rem; }
+    .evo-info-row i { color:var(--gp); font-size:1rem; flex-shrink:0; margin-top:.1rem; }
+    .evo-info-label { color:var(--gm); font-size:.72rem; display:block; margin-bottom:.1rem; }
+    .evo-info-val { color:var(--gt); font-weight:600; }
+
+    /* Teacher card */
+    .evo-teacher { display:flex; flex-direction:column; align-items:center; text-align:center; padding:1.5rem; }
+    .evo-teacher img { width:72px; height:72px; border-radius:50%; object-fit:cover; border:3px solid var(--gp-s); margin-bottom:.75rem; }
+    .evo-teacher-name { font-size:1rem; font-weight:700; color:var(--gt); }
+    .evo-teacher-prof { font-size:.78rem; color:var(--gm); margin:.2rem 0 .75rem; }
+    .evo-teacher-bio  { font-size:.78rem; color:var(--gm); line-height:1.6; }
+
+    /* Action button */
+    .evo-action-btn { display:flex; align-items:center; justify-content:center; gap:.5rem; padding:.7rem; border-radius:10px; font-size:.84rem; font-weight:700; text-decoration:none; transition:opacity .15s; }
+    .evo-action-btn:hover { opacity:.88; }
+    .evo-action-btn-edit    { background:var(--ga-s); color:#92400e; }
+    .evo-action-btn-members { background:var(--gp-s); color:var(--gp); }
+    .evo-action-btn-approve { background:var(--gg-s); color:var(--gg); }
+
+    @media (max-width:1024px) { .evo-stats { grid-template-columns:repeat(2,1fr); } .evo-layout { grid-template-columns:1fr; } }
+    @media (max-width:640px)  { .evo-page { padding:1rem; } .evo-hero { height:220px; } .evo-hero-title { font-size:1.2rem; } .evo-stats { grid-template-columns:1fr 1fr; } }
+  </style>
+</head>
+<body>
+  <?php include $menuDir . 'left-menu.php'; ?>
+  <div class="dashboard-main-wrapper">
+    <?php include $menuDir . 'top-menu.php'; ?>
+    <div class="dashboard-body evo-page">
+
+      <!-- Hero -->
+      <div class="evo-hero">
+        <img src="<?php echo htmlspecialchars($imgSrc); ?>" alt="<?php echo htmlspecialchars($row['title']); ?>">
+        <div class="evo-hero-overlay"></div>
+        <div class="evo-hero-content">
+          <span class="evo-hero-cat"><?php echo htmlspecialchars($row['lestitle']); ?> · <?php echo htmlspecialchars($row['lesdescription']); ?></span>
+          <h1 class="evo-hero-title"><?php echo htmlspecialchars($row['title']); ?></h1>
+          <?php if (!empty($levelTxt) && $levelTxt !== '—'): ?>
+          <span class="evo-hero-sub"><i class="ph ph-graduation-cap"></i> <?php echo htmlspecialchars($levelTxt); ?></span>
+          <?php endif; ?>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="evo-stats">
+        <div class="evo-stat-card">
+          <div class="evo-stat-icon" style="background:var(--gp-s);color:var(--gp);"><i class="ph-fill ph-calendar-blank"></i></div>
+          <div>
+            <div class="evo-stat-num"><?php echo turkcetarih('j F', $row['start_date']); ?></div>
+            <div class="evo-stat-lbl">Başlangıç Tarihi</div>
+          </div>
+        </div>
+        <div class="evo-stat-card">
+          <div class="evo-stat-icon" style="background:var(--gb-s);color:var(--gb);"><i class="ph-fill ph-clock"></i></div>
+          <div>
+            <div class="evo-stat-num"><?php echo $row['total_lesson_time']; ?> hafta</div>
+            <div class="evo-stat-lbl">Hf. <?php echo $row['weekly_lesson_count']; ?> ders · <?php echo (int)$row['total_lesson_time']*(int)$row['weekly_lesson_count']; ?> toplam</div>
+          </div>
+        </div>
+        <div class="evo-stat-card">
+          <div class="evo-stat-icon" style="background:var(--gg-s);color:var(--gg);"><i class="ph-fill ph-users"></i></div>
+          <div>
+            <div class="evo-stat-num"><?php echo $enrolled; ?>/<?php echo $row['quota']; ?></div>
+            <div class="evo-stat-lbl">Öğrenci Kontenjanı</div>
+          </div>
+        </div>
+        <div class="evo-stat-card">
+          <div class="evo-stat-icon" style="background:var(--ga-s);color:var(--ga);"><i class="ph-fill ph-ticket"></i></div>
+          <div>
+            <div class="evo-stat-num"><?php echo $totalCredit; ?></div>
+            <div class="evo-stat-lbl">Grup Ders Kredisi</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Layout -->
+      <div class="evo-layout">
+
+        <!-- Main Content -->
+        <div class="evo-card">
+          <div class="evo-card-head">
+            <h5><i class="ph ph-article" style="color:var(--gp)"></i> Ders İçeriği</h5>
+          </div>
+          <div class="evo-card-body">
+
+            <?php if (!empty($row['subject'])): ?>
+            <div class="evo-section">
+              <div class="evo-section-title"><i class="ph ph-bookmark-simple"></i> Konu</div>
+              <p class="evo-prose"><?php echo htmlspecialchars($row['subject']); ?></p>
+            </div>
+            <?php endif; ?>
+
+            <?php if (!empty($row['description'])): ?>
+            <div class="evo-section">
+              <div class="evo-section-title"><i class="ph ph-info"></i> Genel Bakış</div>
+              <div class="evo-prose"><?php echo $row['description']; ?></div>
+            </div>
+            <?php endif; ?>
+
+            <?php if (!empty($row['rule'])): ?>
+            <div class="evo-section">
+              <div class="evo-section-title"><i class="ph ph-shield-check"></i> Kurs Kuralları</div>
+              <div class="evo-prose"><?php echo $row['rule']; ?></div>
+            </div>
+            <?php endif; ?>
+
+          </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="evo-sidebar">
+
+          <!-- Quick Actions -->
+          <div class="evo-card">
+            <div class="evo-card-head"><h5><i class="ph ph-lightning" style="color:var(--ga)"></i> Hızlı İşlemler</h5></div>
+            <div class="evo-card-body" style="display:flex;flex-direction:column;gap:.5rem;padding:1rem;">
+              <?php if ($panel === 'management'): ?>
+              <a href="management/create-group-class.php?id=<?php echo $row['id']; ?>" class="evo-action-btn evo-action-btn-edit">
+                <i class="ph ph-pencil-simple"></i> Grubu Düzenle
+              </a>
+              <a href="management/group-request.php?id=<?php echo $row['id']; ?>" class="evo-action-btn evo-action-btn-approve">
+                <i class="ph ph-check-circle"></i> Öğrenci Başvuruları
+              </a>
+              <a href="management/class-members.php?id=<?php echo $row['id']; ?>" class="evo-action-btn evo-action-btn-members">
+                <i class="ph ph-users"></i> Gruptaki Öğrenciler
+              </a>
+              <?php elseif ($panel === 'teacher'): ?>
+              <a href="teacher/class-members.php?id=<?php echo $row['id']; ?>" class="evo-action-btn evo-action-btn-members">
+                <i class="ph ph-users"></i> Gruptaki Öğrenciler
+              </a>
+              <?php endif; ?>
+            </div>
+          </div>
+
+          <!-- Kontenjan -->
+          <div class="evo-card">
+            <div class="evo-card-head"><h5><i class="ph ph-users-three" style="color:var(--gp)"></i> Kontenjan Durumu</h5></div>
+            <div class="evo-card-body">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.25rem;">
+                <span style="font-size:.78rem;color:var(--gm);">Dolu</span>
+                <span style="font-size:1rem;font-weight:800;color:var(--gt);"><?php echo $enrolled; ?> / <?php echo $row['quota']; ?></span>
+              </div>
+              <div class="evo-quota-bar">
+                <div class="evo-quota-fill" style="width:<?php echo $pct; ?>%"></div>
+              </div>
+              <div style="font-size:.72rem;color:var(--gm);text-align:right;"><?php echo $pct; ?>% dolu</div>
+
+              <div class="evo-info-list" style="margin-top:1rem;">
+                <div class="evo-info-row">
+                  <i class="ph ph-calendar-check"></i>
+                  <div>
+                    <span class="evo-info-label">Başlangıç</span>
+                    <span class="evo-info-val"><?php echo turkcetarih('j F Y H:i', $row['start_date']); ?></span>
+                  </div>
+                </div>
+                <div class="evo-info-row">
+                  <i class="ph ph-repeat"></i>
+                  <div>
+                    <span class="evo-info-label">Süre</span>
+                    <span class="evo-info-val"><?php echo $row['total_lesson_time']; ?> hafta, haftada <?php echo $row['weekly_lesson_count']; ?> gün</span>
+                  </div>
+                </div>
+                <div class="evo-info-row">
+                  <i class="ph ph-monitor"></i>
+                  <div>
+                    <span class="evo-info-label">Format</span>
+                    <span class="evo-info-val">%100 Online</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Teacher -->
+          <div class="evo-card">
+            <div class="evo-card-head"><h5><i class="ph ph-user-circle" style="color:var(--gp)"></i> Eğitmen</h5></div>
+            <div class="evo-teacher">
+              <img src="<?php echo htmlspecialchars($avatarSrc); ?>" alt="<?php echo htmlspecialchars($row['fullname']); ?>">
+              <div class="evo-teacher-name"><?php echo htmlspecialchars($row['fullname']); ?></div>
+              <div class="evo-teacher-prof"><?php echo htmlspecialchars($row['profession'] ?? ''); ?></div>
+              <?php if (!empty($row['teacherdesc'])): ?>
+              <p class="evo-teacher-bio"><?php echo nl2br(htmlspecialchars(strip_tags($row['teacherdesc']))); ?></p>
+              <?php endif; ?>
+            </div>
+          </div>
+
+        </div><!-- /.evo-sidebar -->
+      </div><!-- /.evo-layout -->
+
+    </div>
+    <?php include 'includes_panel/footer.php'; ?>
+  </div>
+
+  <?php include 'includes_panel/scripts.php'; ?>
+  <?php if ($panel === 'teacher') include 'teacher/includes/teacher-scripts.php'; ?>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.js"></script>
+</body>
+</html>

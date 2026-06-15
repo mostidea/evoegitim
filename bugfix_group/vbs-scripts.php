@@ -1,0 +1,1 @@
+<script src="vbs/assets/js/vbs.js"></script>

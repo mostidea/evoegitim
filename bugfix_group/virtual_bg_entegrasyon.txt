@@ -1,0 +1,28 @@
+=====================================================================
+SUNUCUYA YÜKLENECEK DOSYALAR
+=====================================================================
+
+  virtual_bg_migration.sql           → phpMyAdmin'de evoegiti_evo veritabanında çalıştır
+
+  virtual-bg.js                      → /teacher/assets/js/virtual-bg.js
+                                       /student/assets/js/virtual-bg.js
+                                       /management/assets/js/virtual-bg.js
+                                       /rooms/assets/js/virtual-bg.js
+
+  virtual-bg-modal.php               → /includes/virtual-bg-modal.php
+
+  inc_post_virtual-bg.php            → /inc/post/virtual-bg.php
+
+  management_virtual-backgrounds.php → /management/virtual-backgrounds.php
+  management_includes_left-menu.php  → /management/includes/left-menu.php
+
+  teacher_group-class-detail.php     → /teacher/group-class-detail.php
+  student_group-class-detail.php     → /student/group-class-detail.php
+  management_group-class-detail.php  → /management/group-class-detail.php
+
+  rooms_call.php                     → /rooms/call.php
+  rooms_assets_js_index.js           → /rooms/assets/js/index.js
+
+  [ ] /assets/img/virtual-bg/ klasörü oluştur (izin: 755), kurumsal görselleri koy
+
+=====================================================================

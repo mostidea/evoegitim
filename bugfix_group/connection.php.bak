@@ -1,0 +1,517 @@
+<?php
+date_default_timezone_set('Europe/Istanbul');
+
+if (!headers_sent()) {
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+    header('Pragma: no-cache');
+}
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+use PHPMailer\PHPMailer\SMTP;
+
+$baseDir = dirname(__DIR__);
+if (file_exists($baseDir . '/vendor/autoload.php')) {
+    require_once $baseDir . '/vendor/autoload.php';
+} elseif (file_exists('vendor/autoload.php')) {
+    require_once 'vendor/autoload.php';
+}
+
+else {
+    $possiblePaths = [
+        __DIR__ . '/PHPMailer/src/',
+        dirname(__DIR__) . '/PHPMailer/src/',
+        dirname(__DIR__) . '/student/profile/PHPMailer/src/'
+    ];
+
+    foreach ($possiblePaths as $path) {
+        if (file_exists($path . 'PHPMailer.php')) {
+            require_once $path . 'Exception.php';
+            require_once $path . 'PHPMailer.php';
+            require_once $path . 'SMTP.php';
+            break;
+        }
+    }
+}
+// ---------------------------------------
+
+require_once dirname(__DIR__, 2) . '/secrets.php';
+
+try {
+    $db = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4", DB_USER, DB_PASS, [
+        PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES 'utf8mb4'",
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+    ]);
+} catch (PDOException $e) {
+    http_response_code(503);
+    die("Sunucu geçici olarak kullanılamıyor.");
+}
+
+require_once __DIR__ . '/credit_helpers.php';
+
+function sanitizeMessage($text) {
+    $badWords = [
+        'sik', 'sikerim', 'sikti', 'siktir', 'sikeyim', 'sikim', 'sikin', 'sikiyor',
+        'amcık', 'amına', 'amını', 'amınım', 'amk', 'ananı', 'anan', 'orospu', 'piç',
+        'yarrak', 'yarak', 'göt', 'kahpe', 'puşt', 'ibne', 'haysiyetsiz', 'pezevenk',
+        'mk', 'aq', 'a.q', 'm.k', 'oç', '0ç', 'amq', 'a.m.q', 'g.t', 's.k', 's.k.m', 's.k.t.r',
+        'instagram', 'twitter', 'tiktok', 'snapchat', 'telegram', 't.me/', 'linkedin',
+        'whatsapp', 'watsapp', 'wp', 'wpden', 'wp den', 'numaram', 'numara at', 'tel no',
+        'telefon numaram', 'mail', 'e-posta', 'gmail', 'hotmail', 'outlook', 'adresim',
+        'ara beni', 'bana ulaş', 'mesaj at', 'sms gönder', 'ulaşmak istersen', 'dm at', 'dmden yaz',
+        'link at', 'siteye gir', 'kanalıma abone ol', '.com', '.net', '.org', 'http://', 'https://', 'www.','instagramdan',"instagram'dan","instadan","insta"
+    ];
+
+    foreach ($badWords as $word) {
+        $pattern = '/\b' . preg_quote($word, '/') . '\b/iu';
+        $text = preg_replace($pattern, str_repeat('*', mb_strlen($word)), $text);
+    }
+    $text = preg_replace('/[a-z0-9_\.\-]+@[a-z0-9\-]+\.[a-z]{2,6}/i', '***@***.***', $text);
+    $text = preg_replace('/(\+?90|0)?\s*\d{3}\s*\d{3}\s*\d{2}\s*\d{2}/', '*** *** ** **', $text);
+    $text = preg_replace('/\b\d{10,11}\b/', '**********', $text);
+    return $text;
+}
+
+function checkStudentInfo(PDO $db, string $email, int $studentId): void {
+    $stmt = $db->prepare("SELECT user_email FROM invite_parent WHERE email = :email");
+    $stmt->bindParam(":email", $email);
+    $stmt->execute();
+    $userEmails = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+    if (empty($userEmails)) {
+        header("Location: " . $_SERVER['HTTP_REFERER']);
+        exit;
+    }
+    $placeholders = str_repeat('?,', count($userEmails) - 1) . '?';
+    $check = $db->prepare("SELECT id FROM users WHERE id = ? AND email IN ($placeholders)");
+    $params = array_merge([$studentId], $userEmails);
+    $check->execute($params);
+    $valid = $check->fetchColumn();
+
+    if (!$valid) {
+        header("Location: " . $_SERVER['HTTP_REFERER']);
+        exit;
+    }
+}
+
+if (isset($_GET['uid']) && strpos($_SERVER['REQUEST_URI'], 'vbs') !== false) {
+    if(isset($_SESSION['email'])) {
+        checkStudentInfo($db, $_SESSION['email'], (int)$_GET['uid']);
+    }
+}
+
+$current_page = basename($_SERVER['PHP_SELF']);
+if ($current_page != 'index.php') {
+    $class = 'inner-header';
+} else {
+    $class = '';
+}
+
+function turkcetarih($f, $zt = 'now')
+{
+    if($zt==""){ return ""; exit(); }
+    $z = date("$f", strtotime($zt));
+    $donustur = array(
+        'Monday'    => 'Pazartesi', 'Tuesday'   => 'Salı', 'Wednesday' => 'Çarşamba', 'Thursday'  => 'Perşembe',
+        'Friday'    => 'Cuma', 'Saturday'  => 'Cumartesi', 'Sunday'    => 'Pazar', 'January'   => 'Ocak',
+        'February'  => 'Şubat', 'March'     => 'Mart', 'April'     => 'Nisan', 'May'       => 'Mayıs',
+        'June'      => 'Haziran', 'July'      => 'Temmuz', 'August'    => 'Ağustos', 'September' => 'Eylül',
+        'October'   => 'Ekim', 'November'  => 'Kasım', 'December'  => 'Aralık', 'Mon'       => 'Pts',
+        'Tue'       => 'Sal', 'Wed'       => 'Çar', 'Thu'       => 'Per', 'Fri'       => 'Cum',
+        'Sat'       => 'Cts', 'Sun'       => 'Paz', 'Jan'       => 'Oca', 'Feb'       => 'Şub',
+        'Mar'       => 'Mar', 'Apr'       => 'Nis', 'Jun'       => 'Haz', 'Jul'       => 'Tem',
+        'Aug'       => 'Ağu', 'Sep'       => 'Eyl', 'Oct'       => 'Eki', 'Nov'       => 'Kas', 'Dec'       => 'Ara',
+    );
+    foreach ($donustur as $en => $tr) {
+        $z = str_replace($en, $tr, $z);
+    }
+    if (strpos($z, 'Mayıs') !== false && strpos($f, 'F') === false) $z = str_replace('Mayıs', 'May', $z);
+    return $z;
+}
+
+function sendSms($message,$receiver){
+    $receiver = array_unique($receiver);
+    $params = [
+        'api_id' => SMS_API_ID,
+        'api_key' => SMS_API_KEY,
+        'sender' => 'EVOEGITIM',
+        'message_type' => 'normal',
+        'message' => $message,
+        'message_content_type' => 'bilgi',
+        'phones' => $receiver
+    ];
+    $curl = curl_init();
+    $curl_options = [
+        CURLOPT_URL => 'https://api.vatansms.net/api/v1/1toN',
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 0,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_CUSTOMREQUEST => 'POST',
+        CURLOPT_SSL_VERIFYPEER => 0,
+        CURLOPT_POSTFIELDS => json_encode($params),
+        CURLOPT_HTTPHEADER => ['Content-Type: application/json']
+    ];
+    curl_setopt_array($curl, $curl_options);
+    $response = curl_exec($curl);
+    curl_close($curl);
+   
+}
+
+function checkSession(){
+    if (isset($_SESSION["user_id"])) { header("location: dashboard.php"); }
+}
+
+function checkUnSession() {
+    if (!isset($_SESSION["user_id"])) {
+        header("location: index.php");
+        exit();
+    }
+
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+
+    // Panel uyuşmazlığı: hangi panele login olunduğunu URL ile karşılaştır
+    $uri   = $_SERVER['REQUEST_URI'] ?? '';
+    $panel = $_SESSION['panel'] ?? '';
+
+    $rules = [
+        '/teacher/'    => 'teacher',
+        '/student/'    => 'student',
+        '/vbs/'        => 'vbs',
+        '/management/' => 'management',
+    ];
+
+    foreach ($rules as $path => $expected) {
+        if (strpos($uri, $path) !== false) {
+            if (!empty($panel) && $panel !== $expected) {
+                session_destroy();
+                header("location: " . $path . "index.php?error=access");
+                exit();
+            }
+            if (empty($panel)) {
+                $_SESSION['panel'] = $expected;
+            }
+            break;
+        }
+    }
+}
+
+function parentInviteEmailExists(PDO $db, string $parentEmail, string $currentStudentEmail = ''): bool {
+    $parentEmail = trim(strtolower($parentEmail));
+
+    if ($parentEmail === '') {
+        return false;
+    }
+
+    $parentCheck = $db->prepare("SELECT id FROM parent WHERE LOWER(email) = :email LIMIT 1");
+    $parentCheck->execute([':email' => $parentEmail]);
+    if ($parentCheck->fetch(PDO::FETCH_ASSOC)) {
+        return true;
+    }
+
+    $inviteCheck = $db->prepare("SELECT id FROM invite_parent WHERE LOWER(email) = :email LIMIT 1");
+    $inviteCheck->execute([':email' => $parentEmail]);
+
+    return (bool) $inviteCheck->fetch(PDO::FETCH_ASSOC);
+}
+
+function getRateClass($rate) {
+    switch ($rate) {
+        case "Çok Kötü": return "text-danger bg-danger-100";
+        case "Kötü": return "text-warning bg-warning-100";
+        case "İyi":
+        case "Çok İyi": return "text-success bg-success-100";
+        case "Evet": return "text-success bg-success-100";
+        case "Hayır": return "text-danger bg-danger-100";
+        default: return "text-primary-600 bg-primary-100";
+    }
+}
+
+function getStudentInfo($db, $email) {
+    $getMyStudent = $db->prepare("SELECT * FROM invite_parent WHERE email = :email ORDER BY id DESC");
+    $getMyStudent->bindParam(":email", $email);
+    $getMyStudent->execute();
+    $student = $getMyStudent->fetch(PDO::FETCH_ASSOC);
+
+    if ($student) {
+        $studentId = $db->prepare("SELECT * FROM users WHERE email = :user_email");
+        $studentId->bindParam(":user_email", $student["user_email"]);
+        $studentId->execute();
+        $studentInfo = $studentId->fetch(PDO::FETCH_ASSOC);
+        return ['invite_parent_info' => $student, 'user_info' => $studentInfo];
+    }
+    return false;
+}
+
+function getStudentInfoMultiple($db, $email) {
+    $getMyStudents = $db->prepare("SELECT * FROM invite_parent WHERE email = :email");
+    $getMyStudents->bindParam(":email", $email);
+    $getMyStudents->execute();
+    $students = $getMyStudents->fetchAll(PDO::FETCH_ASSOC);
+    $results = [];
+    foreach ($students as $student) {
+        $studentId = $db->prepare("SELECT id, fullname FROM users WHERE email = :user_email");
+        $studentId->bindParam(":user_email", $student["user_email"]);
+        $studentId->execute();
+        $studentInfo = $studentId->fetch(PDO::FETCH_ASSOC);
+        if ($studentInfo) {
+            $results[] = ['invite_parent_info' => $student, 'user_info' => $studentInfo];
+        }
+    }
+    return $results;
+}
+
+function getUserPhone($db,$uid){
+    $data = $db->prepare("SELECT phone FROM users WHERE id = :uid");
+    $data->bindValue(':uid', $uid);
+    $data->execute();
+    $row = $data->fetch(PDO::FETCH_ASSOC);
+    return $row ? $row['phone'] : "";
+}
+
+function getParentPhone($db,$uid){
+    $data = $db->prepare("SELECT phone FROM parent WHERE id = :uid");
+    $data->bindValue(':uid', $uid);
+    $data->execute();
+    $row = $data->fetch(PDO::FETCH_ASSOC);
+    return $row ? $row['phone'] : "";
+}
+
+function getParentInfo($db, $email) {
+    $studentId = $db->prepare("SELECT * FROM invite_parent WHERE user_email = :user_email");
+    $studentId->bindParam(":user_email", $email);
+    $studentId->execute();
+    $veliInfo = $studentId->fetch(PDO::FETCH_ASSOC);
+    $veliId = $db->prepare("SELECT * FROM parent WHERE email = :user_email");
+    $veliId->bindParam(":user_email", $veliInfo["email"]);
+    $veliId->execute();
+    $veliid = $veliId->fetch(PDO::FETCH_ASSOC);
+    return @$veliid["id"];
+}
+
+function getParentEmail($db, $email) {
+    $studentId = $db->prepare("SELECT * FROM invite_parent WHERE user_email = :user_email");
+    $studentId->bindParam(":user_email", $email);
+    $studentId->execute();
+    $veliInfo = $studentId->fetch(PDO::FETCH_ASSOC);
+    $veliId = $db->prepare("SELECT * FROM parent WHERE email = :user_email");
+    $veliId->bindParam(":user_email", $veliInfo["email"]);
+    $veliId->execute();
+    $veliid = $veliId->fetch(PDO::FETCH_ASSOC);
+    return @$veliid["email"];
+}
+
+function getStudentEmail($db, $email) {
+    $studentId = $db->prepare("SELECT * FROM invite_parent WHERE email = :user_email");
+    $studentId->bindParam(":user_email", $email);
+    $studentId->execute();
+    $veliInfo = $studentId->fetch(PDO::FETCH_ASSOC);
+    return @$veliInfo["user_email"];
+}
+
+function getStudentId($db, $email) {
+    $studentId = $db->prepare("SELECT * FROM invite_parent WHERE email = :user_email");
+    $studentId->bindParam(":user_email", $email);
+    $studentId->execute();
+    $veliInfo = $studentId->fetch(PDO::FETCH_ASSOC);
+    if($veliInfo){
+        $studentData = $db->prepare("SELECT * FROM users WHERE email = :user_email");
+        $studentData->bindParam(":user_email", $veliInfo["user_email"]);
+        $studentData->execute();
+        $si = $studentData->fetch(PDO::FETCH_ASSOC);
+        return @$si["id"];
+    } else { return 0; }
+}
+
+function getStudentIdParentId($db, $email) {
+    $studentId = $db->prepare("SELECT * FROM parent WHERE id = :user_email");
+    $studentId->bindParam(":user_email", $email);
+    $studentId->execute();
+    $veliInfo = $studentId->fetch(PDO::FETCH_ASSOC);
+    if($veliInfo){
+        $studentData = $db->prepare("SELECT * FROM invite_parent WHERE email = :user_email");
+        $studentData->bindParam(":user_email", $veliInfo["email"]);
+        $studentData->execute();
+        $si = $studentData->fetch(PDO::FETCH_ASSOC);
+        return @$si["user_email"];
+    } else { return 0; }
+}
+
+function getLevel($level){
+    switch ($level) {
+        case 1: return "İlk Öğretim";
+        case 2: return "Ortaokul";
+        case 3: return "Lise";
+        case 4: return "Yüksek Öğretim";
+        default: return "Lütfen Müşteri Hizmetlerine Ulaşın";
+    }
+}
+
+function getCategory($level){
+    switch ($level) {
+        case 1: return "Ana Dersler";
+        case 2: return "Rehberlik";
+        default: return "Lütfen Müşteri Hizmetlerine Ulaşın";
+    }
+}
+
+function getGender($gender){
+    switch ($gender) {
+        case 1: return "Erkek";
+        case 2: return "Kadın";
+        case 0: return "Fark Etmez";
+        default: return "Lütfen Müşteri Hizmetlerine Ulaşın";
+    }
+}
+
+function randomTeacherText($val){
+    $messages = [
+        "Hayal gücü, bilgiden daha önemlidir.",
+        "Yapabileceğini düşünen yapabilir, yapamayacağını düşünen yapamaz.",
+        "En yükseğe erişmek isterseniz, en aşağıdan başlayın.",
+        "Matematikte zekâdan önce sabır gelir.",
+        "Kararsızlık ve gecikme başarısızlığın iki önemli sebebidir.",
+        "Başarılı girişimcilerle başarısız girişimcileri ayıran şeylerin yarısının sabır olduğunu gördüm.",
+        "Sıkı bir çalışmanın yerini hiçbir şey alamaz. Deha %1 ilham, %99 çalışmadır.",
+        "Başlamak için mükemmel olmak zorunda değilsin; fakat mükemmel olmak için başlamak zorundasın."
+    ];
+    if($val >= 0 && $val < count($messages)) {
+        return $messages[$val];
+    } else {
+        return $messages[0];
+    }
+}
+
+// =================================================================
+
+// =================================================================
+//function sendEmail($to, $toName, $subject, $body, $altBody) {
+
+//    global $possiblePaths;
+//    if (!class_exists('PHPMailer\PHPMailer\PHPMailer')) {
+//        if(isset($possiblePaths)){
+//            foreach ($possiblePaths as $path) {
+//                if (file_exists($path . 'PHPMailer.php')) {
+//                    require_once $path . 'Exception.php';
+//                    require_once $path . 'PHPMailer.php';
+//                    require_once $path . 'SMTP.php';
+//                    break;
+//                }
+//            }
+//        }
+//    }
+
+ //   $mail = new PHPMailer(true);
+
+//    try {
+
+//        $mail->SMTPDebug = 0; 
+//        $mail->Debugoutput = 'html';
+
+//        $mail->isSMTP();
+//        $mail->Host       = 'mail.kurumsaleposta.com';
+//        $mail->SMTPAuth   = true;
+//        $mail->Username   = 'reply@evoegitim.com.tr';
+//        $mail->Password   = 'JM9-e-3wNfX7u4._';
+//        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+//        $mail->Port       = 587;
+//        $mail->CharSet    = 'UTF-8';
+
+ 
+//        $mail->setFrom('reply@evoegitim.com.tr', 'Evo Eğitim');
+
+   
+//        $mail->addAddress($to, $toName);
+
+
+ //       $mail->isHTML(true);
+ //       $mail->Subject = $subject;
+//        $mail->Body    = $body;
+//        $mail->AltBody = $altBody;
+
+//        $mail->send();
+        // echo "Message has been sent...";
+//        return true;
+//    } catch (Exception $e) {
+        // echo "Message could not be sent...";
+//        return false;
+//    }
+//}
+
+
+// =================================================================
+
+function sendEmail($to, $toName, $subject, $body, $altBody) {
+
+    // پیدا کردن مسیر صحیح PHPMailer
+    if (!class_exists('PHPMailer\PHPMailer\PHPMailer')) {
+        $paths = [
+            __DIR__ . '/PHPMailer/src/',
+            dirname(__DIR__) . '/PHPMailer/src/',
+            dirname(__DIR__) . '/student/profile/PHPMailer/src/'
+        ];
+        foreach ($paths as $path) {
+            if (file_exists($path . 'PHPMailer.php')) {
+                require_once $path . 'Exception.php';
+                require_once $path . 'PHPMailer.php';
+                require_once $path . 'SMTP.php';
+                break;
+            }
+        }
+    }
+
+    $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
+
+    try {
+   
+        $mail->SMTPDebug = 0; 
+        
+        $mail->isSMTP();
+        
+       
+        $mail->Host       = SMTP_HOST;
+
+        $mail->SMTPAuth   = true;
+        $mail->Username   = SMTP_USER;
+        $mail->Password   = SMTP_PASS;
+        
+        $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port       = 587;
+        
+        $mail->CharSet    = 'UTF-8';
+
+
+        $mail->SMTPOptions = array(
+            'ssl' => array(
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+                'allow_self_signed' => true
+            )
+        );
+
+        $mail->setFrom('reply@evoegitim.com.tr', 'Evo Eğitim');
+        $mail->addAddress($to, $toName);
+
+        $mail->isHTML(true);
+        $mail->Subject = $subject;
+        $mail->Body    = $body;
+        $mail->AltBody = $altBody;
+
+        $mail->send();
+        return true;
+        
+    } catch (Exception $e) {
+        error_log("Mail Gönderme Hatası: " . $mail->ErrorInfo);
+        return false;
+    }
+}
+
+
+function sendMail($emails = [], $subject = '', $body = '', $attach = '')
+{
+   
+    return false;
+}
+?>
