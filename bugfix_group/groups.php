@@ -42,7 +42,7 @@ $total = count($groups);
     :root {
       --gp: #7c3aed; --gp-s: #f5f3ff;
       --gb: #2563eb; --gb-s: #eff6ff;
-      --gg: #059669; --gg-s: #ecfdf5;
+      --gg: #10b981; --gg-s: #ecfdf5;
       --ga: #f59e0b; --ga-s: #fffbeb;
       --gt: #0f172a; --gm: #64748b;
       --gbr: #e2e8f0; --gbg: #f1f5f9;

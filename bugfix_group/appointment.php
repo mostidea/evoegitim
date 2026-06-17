@@ -67,119 +67,211 @@ function studentJoinUrl($row) {
   <?php include "../includes_panel/meta.php"; ?>
   <title>Derslerim | Evo Eğitim</title>
   <style>
-    .apts-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:0;}
-    .apts-tab{display:inline-flex;align-items:center;gap:8px;padding:9px 20px;border-radius:10px;
-      border:1.5px solid #e2e8f0;background:#fff;font-size:14px;font-weight:600;
-      color:#64748b;cursor:pointer;transition:all .18s;}
-    .apts-tab.is-active{background:#6366f1;border-color:#6366f1;color:#fff;}
-    .apts-tab .cnt{background:rgba(0,0,0,.08);border-radius:20px;padding:0 8px;font-size:12px;}
+    :root{
+      --ap:  #7c3aed; --ap-s:#f5f3ff; --ap-d:#6d28d9;
+      --ag:  #10b981; --ag-s:#ecfdf5;
+      --ab:  #2563eb; --ab-s:#eff6ff;
+      --ar:  #ef4444; --ar-s:#fef2f2;
+      --am:  #f59e0b; --am-s:#fffbeb;
+      --tx:  #0f172a; --mu: #64748b; --lt: #94a3b8;
+      --br:  #e8edf5; --bg: #f4f6fb; --card:#fff;
+      --rad: 14px;    --shd:0 2px 16px rgba(0,0,0,.06);
+    }
+
+    /* Page shell */
+    .apts-page{background:var(--bg);min-height:100vh;padding:1.75rem;}
+
+    /* Page header */
+    .apts-hdr{
+      display:flex;align-items:flex-start;justify-content:space-between;
+      flex-wrap:wrap;gap:1rem;
+      background:linear-gradient(135deg,#4c1d95 0%,#7c3aed 55%,#6366f1 100%);
+      border-radius:20px;padding:1.75rem 2rem;margin-bottom:1.5rem;
+      box-shadow:0 8px 32px rgba(124,58,237,.22);
+    }
+    .apts-hdr-left h1{font-size:1.35rem;font-weight:800;color:#fff;margin:0 0 .3rem;}
+    .apts-hdr-left p {font-size:.82rem;color:rgba(255,255,255,.72);margin:0;}
+    .apts-hdr-pills{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;}
+    .apts-hdr-pill{
+      display:inline-flex;align-items:center;gap:.3rem;
+      padding:.35rem .8rem;border-radius:20px;
+      font-size:.72rem;font-weight:700;
+      background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.2);
+    }
+
+    /* Tabs */
+    .apts-tabs{
+      display:flex;gap:.5rem;flex-wrap:wrap;
+      background:#fff;border-radius:12px;border:1px solid var(--br);
+      padding:.35rem;margin-bottom:1.25rem;
+      box-shadow:var(--shd);
+    }
+    .apts-tab{
+      display:inline-flex;align-items:center;gap:.5rem;
+      padding:.55rem 1.1rem;border-radius:9px;
+      border:none;background:transparent;
+      font-size:.82rem;font-weight:700;color:var(--mu);
+      cursor:pointer;transition:all .18s;white-space:nowrap;
+    }
+    .apts-tab:hover{background:var(--ap-s);color:var(--ap);}
+    .apts-tab.is-active{background:var(--ap);color:#fff;box-shadow:0 4px 12px rgba(124,58,237,.3);}
+    .apts-tab .cnt{
+      background:rgba(0,0,0,.1);border-radius:20px;
+      padding:1px 7px;font-size:.7rem;line-height:1.6;
+    }
     .apts-tab.is-active .cnt{background:rgba(255,255,255,.22);}
 
-    .lcard{display:flex;align-items:stretch;border-radius:14px;border:1px solid #e9edf3;
-      background:#fff;margin-bottom:10px;overflow:hidden;
-      transition:box-shadow .2s,transform .2s;}
-    .lcard:hover{box-shadow:0 6px 24px rgba(0,0,0,.08);transform:translateY(-1px);}
-    .lcard-stripe{width:5px;flex-shrink:0;}
-    .lcard.solo  .lcard-stripe{background:#6366f1;}
-    .lcard.group .lcard-stripe{background:#10b981;}
-    .lcard-icon{width:48px;flex-shrink:0;display:flex;align-items:center;
-      justify-content:center;font-size:22px;}
-    .lcard.solo  .lcard-icon{color:#6366f1;}
-    .lcard.group .lcard-icon{color:#10b981;}
-    .lcard-body{flex:1;display:grid;
-      grid-template-columns:2fr 1.3fr 1.5fr 1.1fr auto;
-      align-items:center;padding:14px 16px;gap:0;min-width:0;}
+    /* Day separator */
+    .day-sep{
+      display:flex;align-items:center;gap:.75rem;
+      font-size:.68rem;font-weight:800;
+      text-transform:uppercase;letter-spacing:.08em;
+      color:var(--ap);margin:1.25rem 0 .6rem;
+    }
+    .day-sep::before{content:'';width:4px;height:14px;background:var(--ap);border-radius:4px;}
+    .day-sep::after {content:'';flex:1;height:1px;background:var(--br);}
+
+    /* Lesson card */
+    .lcard{
+      display:flex;align-items:stretch;
+      border-radius:var(--rad);border:1px solid var(--br);
+      background:var(--card);margin-bottom:.6rem;overflow:hidden;
+      transition:box-shadow .2s,transform .2s,border-color .2s;
+    }
+    .lcard:hover{box-shadow:0 6px 28px rgba(0,0,0,.09);transform:translateY(-2px);border-color:var(--ap-s);}
+    .lcard-stripe{width:4px;flex-shrink:0;}
+    .lcard.solo  .lcard-stripe{background:linear-gradient(180deg,#7c3aed,#6366f1);}
+    .lcard.group .lcard-stripe{background:linear-gradient(180deg,#059669,#10b981);}
+    .lcard-icon{
+      width:52px;flex-shrink:0;display:flex;align-items:center;
+      justify-content:center;font-size:1.3rem;
+    }
+    .lcard.solo  .lcard-icon{color:var(--ap);}
+    .lcard.group .lcard-icon{color:var(--ag);}
+    .lcard-body{
+      flex:1;display:grid;
+      grid-template-columns:2.2fr 1.2fr 1.5fr 1.1fr auto;
+      align-items:center;padding:1rem 1.1rem;gap:0;min-width:0;
+    }
     @media(max-width:991px){
-      .lcard-body{grid-template-columns:1fr 1fr;row-gap:10px;}
+      .lcard-body{grid-template-columns:1fr 1fr;row-gap:.75rem;}
       .lcard-action{grid-column:1/-1;justify-content:flex-start;}
+    }
+    @media(max-width:767px){
+      .lcard-icon{display:none;}
     }
     @media(max-width:575px){
       .lcard-body{grid-template-columns:1fr;}
-      .lcard-icon{display:none;}
     }
-    .lf{padding:0 10px;min-width:0;}
-    .lf-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
-      color:#94a3b8;margin-bottom:2px;}
-    .lf-val{font-size:14px;font-weight:600;color:#1e293b;white-space:nowrap;
-      overflow:hidden;text-overflow:ellipsis;}
-    .lf-sub{font-size:12px;color:#64748b;margin-top:1px;}
+    .lf{padding:0 .8rem;min-width:0;}
+    .lf-lbl{
+      font-size:.6rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;
+      color:var(--lt);margin-bottom:.2rem;
+    }
+    .lf-val{font-size:.88rem;font-weight:700;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .lf-sub{font-size:.75rem;color:var(--mu);margin-top:.15rem;}
 
-    .tpill{display:inline-flex;align-items:center;gap:4px;font-size:12px;
-      font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;}
-    .tpill.solo {background:#ede9fe;color:#6366f1;}
-    .tpill.group{background:#d1fae5;color:#059669;}
+    /* Type pill */
+    .tpill{display:inline-flex;align-items:center;gap:4px;font-size:.72rem;font-weight:700;padding:.25rem .65rem;border-radius:20px;white-space:nowrap;}
+    .tpill.solo {background:var(--ap-s);color:var(--ap);}
+    .tpill.group{background:var(--ag-s);color:#059669;}
 
-    .spill{display:inline-flex;align-items:center;gap:5px;font-size:12px;
-      font-weight:600;padding:4px 10px;border-radius:20px;white-space:nowrap;}
-    .spill-plan    {background:#dbeafe;color:#1d4ed8;}
-    .spill-active  {background:#d1fae5;color:#065f46;}
-    .spill-done    {background:#f0fdf4;color:#166534;}
-    .spill-cancel  {background:#fef2f2;color:#b91c1c;}
-    .spill-post    {background:#fff7ed;color:#c2410c;}
-    .spill-starting{background:#fef9c3;color:#854d0e;}
-    @keyframes blink{0%,100%{opacity:1}50%{opacity:.55}}
-    .spill-active{animation:blink 2s infinite;}
+    /* Status pill */
+    .spill{display:inline-flex;align-items:center;gap:5px;font-size:.72rem;font-weight:700;padding:.28rem .7rem;border-radius:20px;white-space:nowrap;}
+    .spill-plan    {background:#dbeafe;color:#1e40af;}
+    .spill-done    {background:var(--ag-s);color:#065f46;}
+    .spill-cancel  {background:var(--ar-s);color:#991b1b;}
+    .spill-post    {background:#fff7ed;color:#9a3412;}
+    .spill-starting{background:#fef9c3;color:#78350f;}
+    .spill-active  {background:#d1fae5;color:#065f46;box-shadow:0 0 0 2px rgba(16,185,129,.25);}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.6}}
+    .spill-active{animation:blink 1.8s ease-in-out infinite;}
 
-    .btn-join-solo{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;
-      border-radius:10px;border:none;cursor:pointer;font-size:13px;font-weight:700;
-      background:#6366f1;color:#fff;text-decoration:none;white-space:nowrap;
-      transition:opacity .18s;}
-    .btn-join-group{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;
-      border-radius:10px;border:none;cursor:pointer;font-size:13px;font-weight:700;
-      background:#10b981;color:#fff;text-decoration:none;white-space:nowrap;
-      transition:opacity .18s;}
-    .btn-join-solo:hover,.btn-join-group:hover{opacity:.85;color:#fff;}
-    .btn-cd{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;
-      border-radius:10px;border:1.5px solid #e2e8f0;background:#f8fafc;
-      color:#64748b;font-size:12px;font-weight:600;cursor:default;white-space:nowrap;}
-    .btn-noroom{display:inline-flex;align-items:center;gap:5px;padding:8px 12px;
-      border-radius:10px;border:1.5px solid #fecaca;background:#fef2f2;
-      color:#b91c1c;font-size:12px;cursor:default;white-space:nowrap;}
+    /* Buttons */
+    .btn-join-solo,
+    .btn-join-group{
+      display:inline-flex;align-items:center;gap:.4rem;
+      padding:.5rem 1.1rem;border-radius:10px;border:none;
+      font-size:.8rem;font-weight:700;text-decoration:none;white-space:nowrap;
+      cursor:pointer;transition:transform .15s,box-shadow .15s,opacity .15s;
+      min-height:38px;
+    }
+    .btn-join-solo {background:linear-gradient(135deg,var(--ap-d),var(--ap));color:#fff;box-shadow:0 3px 12px rgba(124,58,237,.3);}
+    .btn-join-group{background:linear-gradient(135deg,#059669,var(--ag));color:#fff;box-shadow:0 3px 12px rgba(16,185,129,.28);}
+    .btn-join-solo:hover {transform:translateY(-1px);box-shadow:0 6px 18px rgba(124,58,237,.35);color:#fff;opacity:1;}
+    .btn-join-group:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(16,185,129,.32);color:#fff;opacity:1;}
+    .btn-cd{
+      display:inline-flex;align-items:center;gap:.4rem;
+      padding:.5rem .85rem;border-radius:10px;
+      border:1.5px solid var(--br);background:#f8fafc;
+      color:var(--mu);font-size:.76rem;font-weight:700;
+      cursor:default;white-space:nowrap;min-height:38px;
+      font-variant-numeric:tabular-nums;
+    }
+    .btn-noroom{
+      display:inline-flex;align-items:center;gap:.35rem;
+      padding:.5rem .85rem;border-radius:10px;
+      border:1.5px solid #fecaca;background:var(--ar-s);
+      color:#991b1b;font-size:.76rem;font-weight:600;cursor:default;
+      white-space:nowrap;min-height:38px;
+    }
 
-    .day-sep{display:flex;align-items:center;gap:10px;font-size:11px;font-weight:700;
-      text-transform:uppercase;letter-spacing:.7px;color:#94a3b8;margin:18px 0 8px;}
-    .day-sep::after{content:'';flex:1;height:1px;background:#f1f5f9;}
+    /* Filter bar */
+    .gfilter{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem;}
+    .gf-lbl{font-size:.78rem;color:var(--mu);font-weight:700;}
+    .gf-btn{
+      padding:.3rem .9rem;border-radius:20px;
+      border:1.5px solid var(--br);background:#fff;
+      font-size:.75rem;font-weight:700;color:var(--mu);
+      cursor:pointer;transition:all .15s;
+    }
+    .gf-btn:hover{border-color:var(--ap);color:var(--ap);}
+    .gf-btn.fa{background:var(--ap);border-color:var(--ap);color:#fff;}
+    .gf-btn.fg{background:var(--ag);border-color:var(--ag);color:#fff;}
 
-    .empty-st{text-align:center;padding:56px 20px;}
-    .empty-st i{font-size:52px;color:#e2e8f0;display:block;margin-bottom:14px;}
-    .empty-st p{color:#94a3b8;font-size:15px;margin:0;}
+    .lcard-action{display:flex;align-items:center;justify-content:flex-end;padding:0 .5rem 0 .75rem;}
 
-    .gfilter{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
-    .gf-btn{padding:5px 14px;border-radius:20px;border:1.5px solid #e2e8f0;
-      background:#fff;font-size:12px;font-weight:600;color:#64748b;cursor:pointer;transition:all .15s;}
-    .gf-btn.fa{background:#6366f1;border-color:#6366f1;color:#fff;}
-    .gf-btn.fg{background:#10b981;border-color:#10b981;color:#fff;}
-    .lcard-action{display:flex;align-items:center;justify-content:flex-end;
-      padding-left:10px;padding-right:4px;}
+    /* Past card */
+    .past-lcard{opacity:.75;transition:opacity .2s;}
+    .past-lcard:hover{opacity:1;}
+
+    /* Empty state */
+    .empty-st{text-align:center;padding:4rem 1.5rem;}
+    .empty-st i{font-size:3rem;color:#dde3ee;display:block;margin-bottom:.85rem;}
+    .empty-st p{color:var(--lt);font-size:.92rem;margin:0;line-height:1.6;}
   </style>
 </head>
 <body>
   <?php include 'includes/left-menu.php'; ?>
   <div class="dashboard-main-wrapper">
     <?php include 'includes/top-menu.php'; ?>
-    <div class="dashboard-body">
-      <div class="card mt-24">
+    <div class="dashboard-body apts-page">
 
-        <div class="card-header border-bottom pb-24">
-          <h4 class="mb-6">Derslerim</h4>
-          <p class="text-gray-600 text-15 mb-20">Tüm solo ve grup dersleriniz burada listelenir.</p>
-          <div class="d-flex align-items-center gap-16 mb-20">
-            <span class="tpill solo"><i class="ph ph-user"></i> Solo Ders</span>
-            <span class="tpill group"><i class="ph ph-users-three"></i> Grup Ders</span>
-          </div>
-          <div class="apts-tabs">
-            <button class="apts-tab is-active" data-tab="guncel">
-              <i class="ph ph-calendar-check"></i> Güncel Dersler
-              <span class="cnt"><?= count($guncelRows) ?></span>
-            </button>
-            <button class="apts-tab" data-tab="gecmis">
-              <i class="ph ph-clock-counter-clockwise"></i> Geçmiş Dersler
-              <span class="cnt"><?= count($gecmisRows) ?></span>
-            </button>
-          </div>
+      <!-- Page header -->
+      <div class="apts-hdr">
+        <div class="apts-hdr-left">
+          <h1><i class="ph ph-book-open" style="vertical-align:middle;margin-right:.4rem;"></i>Derslerim</h1>
+          <p>Tüm solo ve grup dersleriniz burada listelenir.</p>
         </div>
+        <div class="apts-hdr-pills">
+          <span class="apts-hdr-pill"><i class="ph ph-user"></i> Solo Ders</span>
+          <span class="apts-hdr-pill"><i class="ph ph-users-three"></i> Grup Ders</span>
+        </div>
+      </div>
 
-        <div class="card-body py-20 px-24">
+      <!-- Tabs -->
+      <div class="apts-tabs">
+        <button class="apts-tab is-active" data-tab="guncel">
+          <i class="ph ph-calendar-check"></i> Güncel Dersler
+          <span class="cnt"><?= count($guncelRows) ?></span>
+        </button>
+        <button class="apts-tab" data-tab="gecmis">
+          <i class="ph ph-clock-counter-clockwise"></i> Geçmiş Dersler
+          <span class="cnt"><?= count($gecmisRows) ?></span>
+        </button>
+      </div>
+
+      <div style="background:var(--card);border-radius:16px;border:1px solid var(--br);box-shadow:var(--shd);padding:1.25rem 1.5rem;">
 
           <!-- GÜNCEL -->
           <div id="tab-guncel">
@@ -336,7 +428,7 @@ function studentJoinUrl($row) {
 
         </div>
       </div>
-    </div>
+    </div><!-- /.apts-page -->
     <?php include '../includes_panel/footer.php'; ?>
   </div>
 

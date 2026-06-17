@@ -10,6 +10,7 @@ if (isset($_GET['kurs'])) {
 
 } else {
   header("location: group-classes.php");
+  exit;
 }
 
 function slugify($text) {
@@ -25,7 +26,7 @@ function slugify($text) {
 <html lang="tr">
 
 <head>
-  <?php include '../includes/meta.php'; ?>
+  <?php include '../includes_panel/meta.php'; ?>
   <link rel="stylesheet" href="https://evoegitim.com/new-site/assets/css/fontawesome.min.css?v=5021139">
   <!-- SweetAlert2 CSS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
@@ -114,7 +115,7 @@ function slugify($text) {
                   </div>
                 </div>
                 <div class="col-lg-8">
-                <div class="mega-hover course-img"><img src="<?php echo $row["image"]; ?>" alt="Ders Fotoğrafı" /></div>
+                <div class="mega-hover course-img"><img src="/<?php echo ltrim($row["image"], '/'); ?>" alt="Ders Fotoğrafı" /></div>
                   <div class="course-category">
                     <a href="course.php"><?php echo $row["lestitle"]; ?> - <?php echo $row["lesdescription"]; ?></a>
                   </div>
@@ -141,7 +142,7 @@ function slugify($text) {
                     <div class="col-sm-6 col-lg-4">
                       <div class="team-style1">
                         <div class="team-img">
-                          <img class="w-100" src="<?php echo $row["profile_photo"]; ?>" alt="<?php echo htmlspecialchars($row['fullname']); ?>" />
+                          <img class="w-100" src="/<?php echo ltrim($row["profile_photo"], '/'); ?>" alt="<?php echo htmlspecialchars($row['fullname']); ?>" />
                         </div>
                         <div class="team-content">
                           <h4 class="team-name"><a href="https://evoegitim.com/ogretmen/<?php echo slugify($row['fullname']); ?>-<?php echo $row['teacher_id']; ?>/"><?php echo htmlspecialchars($row["fullname"]); ?></a></h4>
@@ -159,12 +160,11 @@ function slugify($text) {
 
 
     </div>
-    <?php include '../includes/footer.php'; ?>
+    <?php include '../includes_panel/footer.php'; ?>
   </div>
 
   <script src="assets/js/virtual-bg.js"></script>
-  <?php include '../includes/virtual-bg-modal.php'; ?>
-  <?php include '../includes/scripts.php'; ?>
+  <?php include '../includes_panel/scripts.php'; ?>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.js"></script>
   
   <script>

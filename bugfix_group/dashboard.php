@@ -288,7 +288,7 @@ $getNotificData = $getNotific->fetch(PDO::FETCH_ASSOC);
       transition: transform .2s, box-shadow .2s;
       cursor: default;
     }
-    .evo-stat:hover { transform:translateY(-3px); box-shadow:var(--evo-shadow-lg); }
+    .evo-stat:hover { transform:translateY(-2px); box-shadow:var(--evo-shadow-lg); }
     .evo-stat-icon {
       width: 46px; height: 46px;
       border-radius: 12px;
@@ -724,7 +724,7 @@ $getNotificData = $getNotific->fetch(PDO::FETCH_ASSOC);
   <?php include '../includes_panel/scripts.php'; ?>
   <?php include 'includes/vbs-scripts.php'; ?>
   <?php include 'includes/student-scripts.php'; ?>
-  <script src="assets/js/calendar.js?v=<?php echo rand(0, 99999); ?>"></script>
+  <script src="assets/js/calendar.js?v=2"></script>
   <script>
     createChart("complete-course",    "#2563eb");
     createChart("earned-certificate", "#ef4444");

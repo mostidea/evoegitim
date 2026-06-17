@@ -10,13 +10,13 @@ $(document).ready(function () {
     if (!micOn) {
       await enableMic();
       micOn = true;
-      $("#btn-enable-mic").show();
-      $("#btn-disable-mic").hide();
+      $("#btn-enable-mic").hide();
+      $("#btn-disable-mic").show();
     } else {
       disableMic();
       micOn = false;
-      $("#btn-enable-mic").hide();
-      $("#btn-disable-mic").show();
+      $("#btn-enable-mic").show();
+      $("#btn-disable-mic").hide();
     }
   });
 
@@ -24,13 +24,13 @@ $(document).ready(function () {
     if (!camOn) {
       await enableCamera();
       camOn = true;
-      $("#btn-enable-cam").show();
-      $("#btn-disable-cam").hide();
+      $("#btn-enable-cam").hide();
+      $("#btn-disable-cam").show();
     } else {
       disableCamera();
       camOn = false;
-      $("#btn-enable-cam").hide();
-      $("#btn-disable-cam").show();
+      $("#btn-enable-cam").show();
+      $("#btn-disable-cam").hide();
     }
   });
 });
@@ -114,6 +114,12 @@ async function init() {
   const urlParams = new URLSearchParams(window.location.search);
   let isAdmin = window.isAdmin;
   let roomId  = window.roomId;
+
+  if (!roomId) {
+    console.error('[init] window.roomId tanımsız — oda başlatılamıyor.');
+    return;
+  }
+
   CHANNEL = `room-${roomId}`;
   client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
 

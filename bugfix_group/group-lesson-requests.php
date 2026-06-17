@@ -216,7 +216,7 @@ $avatarColors = ['#7c3aed','#2563eb','#059669','#d97706','#db2777','#0891b2'];
           <p class="glr-head-sub">Tum grup derslerinize gelen ogrenci basvurulari</p>
         </div>
         <a href="teacher/group-request.php" class="glr-head-btn">
-          <i class="ph ph-plus"></i> Yeni Talep Olustur
+          <i class="ph ph-list-checks"></i> Grup Başvurularını Yönet
         </a>
       </div>
 

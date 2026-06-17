@@ -135,7 +135,7 @@ $randId=rand(0,22).time();
 
     // 1. Bu gruba başvuran ve kabul edilen öğrenciler
     $students = $db->prepare(
-      'SELECT user_id FROM apply_group WHERE group_id = ? AND status = 1'
+      'SELECT user_id FROM groups_quota WHERE group_id = ? AND status = 1'
     );
     $students->execute([$gid]);
     $studentList = $students->fetchAll(PDO::FETCH_COLUMN);
